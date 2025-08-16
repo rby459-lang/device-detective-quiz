@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Device Detective Game</title>
+    <!-- Use Tailwind CSS for modern styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Use html2canvas to render the certificate as an image -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            color: #1f2937;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1rem;
+        }
+        .container {
+            width: 100%;
+            max-width: 600px;
+            padding: 2rem;
+            background-color: white;
+            border-radius: 1rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            border-top: 4px solid #4f46e5;
+        }
+        .question-option {
+            transition: all 0.2s;
+        }
+        .question-option:hover:not(.answered) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .answered.correct {
+            background-color: #d1fae5;
+            color: #065f46;
+            font-weight: 600;
+        }
+        .answered.incorrect {
+            background-color: #fee2e2;
+            color: #991b1b;
+            opacity: 0.6;
+            text-decoration: line-through;
+        }
+        .button-primary {
+            transition: all 0.3s;
+        }
+        .button-primary:hover {
+            background-color: #312e81;
+            transform: scale(1.05);
+        }
+        #certificate-container {
+            background: linear-gradient(145deg, #e2e8f0, #ffffff);
+            border: 2px solid #cbd5e1;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+            padding: 2.5rem;
+            text-align: center;
+            position: relative;
+        }
+        .certificate-logo {
+            width: 250px;
+            margin: 0 auto 1.5rem;
+        }
+        .certificate-title {
+            font-size: 2.25rem;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 0.5rem;
+        }
+        .certificate-subtitle {
+            font-size: 1.5rem;
+            font-weight: 500;
+            color: #4b5563;
+            margin-bottom: 1.5rem;
+        }
+        .certificate-name {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: #4f46e5;
+            font-family: 'Times New Roman', Times, serif;
+            margin: 1rem 0 2rem;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        }
+        .certificate-text {
+            font-size: 1rem;
+            color: #374151;
+            margin-bottom: 2rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="app-container" class="container">
+        <!-- User Details Form Section -->
+        <div id="form-section">
+            <div class="text-center mb-6">
+                <h1 class="text-3xl font-bold text-indigo-700">Device Detective</h1>
+                <p class="mt-2 text-lg text-gray-600">Please provide your details to start the game.</p>
+            </div>
+            <form id="details-form" class="space-y-4">
+                <div>
+                    <label for="name" class="block text-sm font-medium text-gray-700">Name</label>
+                    <input type="text" id="name" name="name" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" />
+                </div>
+                <div>
+                    <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
+                    <input type="email" id="email" name="email" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" />
+                    <p id="email-error" class="text-sm text-red-500 mt-1 hidden">Please enter a valid email address.</p>
+                </div>
+                <div>
+                    <label for="organization" class="block text-sm font-medium text-gray-700">Current Organization</label>
+                    <input type="text" id="organization" name="organization" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" />
+                </div>
+                <div>
+                    <label for="contact" class="block text-sm font-medium text-gray-700">Contact Number</label>
+                    <input type="tel" id="contact" name="contact" pattern="[0-9]{10}" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" />
+                    <p id="contact-error" class="text-sm text-red-500 mt-1 hidden">Please enter a valid 10-digit contact number.</p>
+                </div>
+                <div class="text-center">
+                    <button type="submit" id="submit-button" class="px-8 py-3 font-semibold text-white bg-indigo-600 rounded-lg shadow-md button-primary">Start Game</button>
+                    <p id="form-status" class="mt-2 text-sm text-gray-500"></p>
+                </div>
+            </form>
+        </div>
+
+        <!-- Game Section -->
+        <div id="game-section" class="hidden">
+            <div class="flex justify-between items-center mb-6">
+                <h3 id="round-counter" class="text-xl font-bold text-gray-700"></h3>
+                <p class="text-sm text-gray-500">Score: <span id="score-counter" class="font-bold text-gray-700">0</span></p>
+            </div>
+            <div class="mb-6">
+                <p id="device-description" class="text-gray-600 mb-4"></p>
+                <p id="question-text" class="text-lg font-semibold text-gray-800"></p>
+            </div>
+            <div id="options-container" class="grid grid-cols-1 gap-4">
+                <!-- Options will be injected here by JavaScript -->
+            </div>
+            <div id="explanation-container" class="hidden mt-6 p-4 bg-gray-50 rounded-lg border-l-4 border-indigo-400">
+                <h4 class="font-bold text-indigo-700">Explanation:</h4>
+                <p id="explanation-text" class="mt-2 text-sm text-gray-700"></p>
+                <div class="mt-4 text-center">
+                    <button id="next-button" class="px-6 py-2 font-semibold text-white bg-indigo-600 rounded-lg shadow-md button-primary">Next</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Score Section -->
+        <div id="score-section" class="hidden text-center">
+            <h2 class="text-3xl font-bold text-indigo-700 mb-4">Game Over!</h2>
+            <p id="final-score" class="text-xl text-gray-700 mb-6"></p>
+            <p id="final-message" class="text-lg font-medium text-gray-600 mb-8"></p>
+            <button id="show-certificate-button" class="px-8 py-3 font-semibold text-white bg-indigo-600 rounded-lg shadow-md button-primary">Show Certificate</button>
+            <button id="restart-button" class="px-8 py-3 font-semibold text-indigo-600 border border-indigo-600 rounded-lg shadow-md hover:bg-indigo-50 transition-colors duration-300 mt-4">Play Again</button>
+        </div>
+
+        <!-- Certificate Section -->
+        <div id="certificate-section" class="hidden">
+            <div id="certificate-container">
+                <!-- NextGen MedTech Professionals Logo as an inline SVG -->
+                <svg class="certificate-logo" viewBox="0 0 450 150" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="0" y="0" width="150" height="150" fill="transparent" />
+                    <path d="M75 10C39.1015 10 10 39.1015 10 75C10 110.899 39.1015 140 75 140C110.899 140 140 110.899 140 75C140 39.1015 110.899 10 75 10Z" fill="url(#paint0_linear_1_2)" />
+                    <rect x="35" y="65" width="80" height="20" fill="#E2E8F0" />
+                    <rect x="65" y="35" width="20" height="80" fill="#E2E8F0" />
+                    <path d="M75 10C39.1015 10 10 39.1015 10 75C10 110.899 39.1015 140 75 140C110.899 140 140 110.899 140 75C140 39.1015 110.899 10 75 10Z" stroke="#E2E8F0" stroke-width="2" />
+                    <text x="160" y="55" font-family="Inter, sans-serif" font-size="40" font-weight="bold" fill="#38A169">NEXTGen</text>
+                    <text x="160" y="95" font-family="Inter, sans-serif" font-size="40" font-weight="bold" fill="#1A202C">MedTech</text>
+                    <text x="160" y="125" font-family="Inter, sans-serif" font-size="20" font-weight="normal" fill="#4B5563">PROFESSIONALS</text>
+                    <defs>
+                        <linearGradient id="paint0_linear_1_2" x1="10" y1="75" x2="140" y2="75" gradientUnits="userSpaceOnUse">
+                            <stop stop-color="#4F46E5" />
+                            <stop offset="1" stop-color="#E2E8F0" />
+                        </linearGradient>
+                    </defs>
+                </svg>
+                <div class="certificate-title">Certificate of Completion</div>
+                <div class="certificate-subtitle">This certifies that</div>
+                <div class="certificate-name" id="certificate-name"></div>
+                <div class="certificate-text">
+                    has successfully completed the
+                    <br>
+                    **Device Detective Game**
+                    <br>
+                    and has demonstrated an understanding of FDA medical device classifications and regulatory pathways.
+                </div>
+            </div>
+            <div class="mt-8 text-center">
+                <button id="download-button" class="px-8 py-3 font-semibold text-white bg-green-600 rounded-lg shadow-md button-primary">Download Certificate</button>
+                <button id="restart-from-certificate" class="px-8 py-3 font-semibold text-indigo-600 border border-indigo-600 rounded-lg shadow-md hover:bg-indigo-50 transition-colors duration-300 mt-4">Play Again</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const quizData = [
+                {
+                    device: 'A new type of **tongue depressor** made from a biodegradable polymer. It is intended for basic oral exams and has no novel features.',
+                    question: 'What is the most likely FDA classification for this device?',
+                    options: [
+                        { text: 'Class I (Low Risk)', isCorrect: true },
+                        { text: 'Class II (Moderate Risk)', isCorrect: false },
+                        { text: 'Class III (High Risk)', isCorrect: false },
+                        { text: 'The FDA does not regulate tongue depressors.', isCorrect: false },
+                    ],
+                    explanation: 'Tongue depressors are considered low-risk devices. Class I devices are subject to General Controls, which include things like registration, listing, and good manufacturing practices. Most Class I devices are exempt from premarket notification.',
+                },
+                {
+                    device: 'A new **digital stethoscope** wirelessly connects to a physician\'s phone, records heart and lung sounds, and displays them on the screen. It is an upgrade to a traditional stethoscope but does not perform any automated analysis.',
+                    question: 'What is the most likely FDA classification for this device, and which type of submission would it likely require?',
+                    options: [
+                        { text: 'Class I, 510(k) Premarket Notification', isCorrect: false },
+                        { text: 'Class II, 510(k) Premarket Notification', isCorrect: true },
+                        { text: 'Class II, Premarket Approval (PMA)', isCorrect: false },
+                        { text: 'Class III, Investigational Device Exemption (IDE)', isCorrect: false },
+                    ],
+                    explanation: 'A digital stethoscope is a moderate-risk device. It is substantially equivalent to existing digital stethoscopes on the market, which are Class II. Therefore, a 510(k) Premarket Notification is the correct pathway. This submission demonstrates that the new device is "substantially equivalent" to a legally marketed predicate device.',
+                },
+                {
+                    device: 'A novel **brain implant** is designed to treat severe, drug-resistant epilepsy. The device is surgically implanted and delivers electrical stimulation directly to the brain to prevent seizures.',
+                    question: 'What is the correct FDA classification and required submission for this device?',
+                    options: [
+                        { text: 'Class I, 510(k) Premarket Notification', isCorrect: false },
+                        { text: 'Class II, De Novo Classification', isCorrect: false },
+                        { text: 'Class II, Premarket Approval (PMA)', isCorrect: false },
+                        { text: 'Class III, Premarket Approval (PMA)', isCorrect: true },
+                    ],
+                    explanation: 'This is a high-risk device. It is a new technology that is life-sustaining and poses a significant risk of illness or injury if something goes wrong. Class III devices require a Premarket Approval (PMA), which is the most rigorous type of device application. The PMA process requires extensive scientific evidence to demonstrate the device\'s safety and effectiveness.',
+                },
+                {
+                    device: 'A **mobile app** uses a smartphone\'s camera to take a picture of a mole and provides a risk assessment for melanoma based on an image analysis algorithm. The app is for informational purposes only and does not provide a definitive diagnosis.',
+                    question: 'Is this an example of SaMD (Software as a Medical Device)?',
+                    options: [
+                        { text: 'Yes, because its intended use is to diagnose, treat, or mitigate a disease.', isCorrect: true },
+                        { text: 'No, because it does not have a physical component.', isCorrect: false },
+                        { text: 'No, because it is only for informational purposes.', isCorrect: false },
+                        { text: 'Yes, but it is not regulated by the FDA.', isCorrect: false },
+                    ],
+                    explanation: 'This is a classic example of SaMD because the software itself is intended for a medical purpose. Even though it is for "informational purposes," the intended use of providing a risk assessment for a disease makes it fall under the FDA\'s regulatory scope.',
+                },
+                {
+                    device: 'A **software algorithm** is embedded within a new MRI machine and helps to reconstruct and enhance images. The software cannot be used separately from the MRI machine.',
+                    question: 'Is this an example of SaMD or SiMD (Software in a Medical Device)?',
+                    options: [
+                        { text: 'SaMD', isCorrect: false },
+                        { text: 'SiMD', isCorrect: true },
+                        { text: 'Both SaMD and SiMD', isCorrect: false },
+                        { text: 'Neither, it is not a medical device.', isCorrect: false },
+                    ],
+                    explanation: 'This is a perfect example of SiMD. The software is an integral part of a hardware medical device (the MRI machine) and cannot function independently.',
+                },
+                {
+                    device: 'A new **surgical robot** is designed to assist surgeons with complex, minimally invasive procedures. It is used to cut and cauterize tissue.',
+                    question: 'This device is a medical device because it is intended to:',
+                    options: [
+                        { text: 'Diagnose or treat disease', isCorrect: true },
+                        { text: 'Provide information to the user', isCorrect: false },
+                        { text: 'Manage patient records', isCorrect: false },
+                        { text: 'All of the above', isCorrect: false },
+                    ],
+                    explanation: 'According to the FDA definition, a medical device is an instrument, apparatus, implement, machine, etc., intended for use in the diagnosis of disease or other conditions, or in the cure, mitigation, treatment, or prevention of disease.',
+                },
+                {
+                    device: 'A new **glucose monitoring system** uses a new type of test strip to measure blood sugar levels. The technology has no direct competitor on the market.',
+                    question: 'Given the novelty of this device, the company would likely submit a:',
+                    options: [
+                        { text: '510(k) Premarket Notification', isCorrect: false },
+                        { text: 'De Novo Classification Request', isCorrect: true },
+                        { text: 'Premarket Approval (PMA)', isCorrect: false },
+                        { text: 'Pre-Submission', isCorrect: false },
+                    ],
+                    explanation: 'The De Novo pathway is for new, low-to-moderate risk devices that do not have a predicate. If there is no existing, substantially equivalent device, the company would apply for a De Novo classification instead of a 510(k).',
+                },
+                {
+                    device: 'A company is developing a new **smart contact lens** that monitors glucose levels in tears and transmits data to a smartphone. They want to prove that it is as safe and effective as a traditional blood glucose monitor.',
+                    question: 'The company is trying to establish:',
+                    options: [
+                        { text: 'Device Safety', isCorrect: false },
+                        { text: 'Device Efficacy', isCorrect: false },
+                        { text: 'Substantial Equivalence (SE)', isCorrect: true },
+                        { text: 'Premarket Approval (PMA)', isCorrect: false },
+                    ],
+                    explanation: 'Substantial Equivalence (SE) is the core concept of the 510(k) pathway. It means the new device has the same intended use as a predicate device and is as safe and effective as the predicate.',
+                },
+                {
+                    device: 'A new **automated IV pump** has identical design specifications and materials as an existing legally marketed device.',
+                    question: 'The existing device is a "predicate" for the new automated IV pump.',
+                    options: [
+                        { text: 'True', isCorrect: true },
+                        { text: 'False', isCorrect: false },
+                    ],
+                    explanation: 'A predicate device is a legally marketed device to which a new device is compared to establish substantial equivalence. In this case, the existing IV pump serves as the predicate.',
+                },
+                {
+                    device: 'A **fitness tracker** simply counts steps and measures heart rate, without making any medical claims.',
+                    question: 'Is this considered a medical device by the FDA?',
+                    options: [
+                        { text: 'Yes, because it measures a physiological parameter.', isCorrect: false },
+                        { text: 'No, because its intended use is for general wellness, not a medical purpose.', isCorrect: true },
+                        { text: 'Yes, it is a Class II device.', isCorrect: false },
+                        { text: 'Yes, it is an unregulated medical device.', isCorrect: false },
+                    ],
+                    explanation: 'The intended use is key. If a device is for "general wellness" and does not make claims to diagnose, treat, or prevent a disease, it is generally not considered a medical device by the FDA.',
+                }
+            ];
+
+            // DOM element references
+            const formSection = document.getElementById('form-section');
+            const gameSection = document.getElementById('game-section');
+            const scoreSection = document.getElementById('score-section');
+            const certificateSection = document.getElementById('certificate-section');
+            const detailsForm = document.getElementById('details-form');
+            const submitButton = document.getElementById('submit-button');
+            const formStatus = document.getElementById('form-status');
+            const nameInput = document.getElementById('name');
+            const emailInput = document.getElementById('email');
+            const emailError = document.getElementById('email-error');
+            const contactInput = document.getElementById('contact');
+            const contactError = document.getElementById('contact-error');
+
+            const roundCounter = document.getElementById('round-counter');
+            const scoreCounter = document.getElementById('score-counter');
+            const deviceDescription = document.getElementById('device-description');
+            const questionText = document.getElementById('question-text');
+            const optionsContainer = document.getElementById('options-container');
+            const explanationContainer = document.getElementById('explanation-container');
+            const explanationText = document.getElementById('explanation-text');
+            const nextButton = document.getElementById('next-button');
+
+            const finalScore = document.getElementById('final-score');
+            const finalMessage = document.getElementById('final-message');
+            const showCertificateButton = document.getElementById('show-certificate-button');
+            const restartButton = document.getElementById('restart-button');
+
+            const certificateName = document.getElementById('certificate-name');
+            const downloadButton = document.getElementById('download-button');
+            const restartFromCertificate = document.getElementById('restart-from-certificate');
+            const certificateContainer = document.getElementById('certificate-container');
+
+            // Game state variables
+            let currentQuestionIndex = 0;
+            let score = 0;
+            let isAnswered = false;
+
+            // Function to validate email format
+            const isValidEmail = (email) => {
+                const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                return re.test(String(email).toLowerCase());
+            };
+
+            // Function to validate 10-digit contact number format
+            const isValidContact = (contact) => {
+                const re = /^\d{10}$/;
+                return re.test(contact);
+            };
+
+            // Function to render the current question
+            const renderQuestion = () => {
+                const currentQuestion = quizData[currentQuestionIndex];
+                roundCounter.textContent = `Round ${currentQuestionIndex + 1} of ${quizData.length}`;
+                scoreCounter.textContent = score;
+                deviceDescription.innerHTML = currentQuestion.device;
+                questionText.textContent = currentQuestion.question;
+
+                optionsContainer.innerHTML = '';
+                currentQuestion.options.forEach((option, index) => {
+                    const optionButton = document.createElement('button');
+                    optionButton.textContent = option.text;
+                    optionButton.className = 'p-4 rounded-lg text-left shadow-sm transition-colors duration-200 bg-white hover:bg-gray-50 question-option';
+                    optionButton.addEventListener('click', () => handleAnswerClick(option.isCorrect, optionButton));
+                    optionsContainer.appendChild(optionButton);
+                });
+
+                explanationContainer.classList.add('hidden');
+                isAnswered = false;
+            };
+
+            // Function to handle answer selection
+            const handleAnswerClick = (isCorrect, selectedButton) => {
+                if (isAnswered) return;
+                isAnswered = true;
+
+                if (isCorrect) {
+                    score++;
+                    scoreCounter.textContent = score;
+                }
+
+                const currentQuestion = quizData[currentQuestionIndex];
+                const allOptions = optionsContainer.querySelectorAll('button');
+
+                allOptions.forEach((button, index) => {
+                    button.classList.add('answered');
+                    button.disabled = true;
+                    if (currentQuestion.options[index].isCorrect) {
+                        button.classList.add('correct');
+                    }
+                    if (button !== selectedButton && !currentQuestion.options[index].isCorrect) {
+                         button.classList.add('incorrect');
+                    }
+                });
+
+                explanationText.textContent = currentQuestion.explanation;
+                explanationContainer.classList.remove('hidden');
+            };
+
+            // Function to move to the next question
+            const handleNextQuestion = () => {
+                const nextQuestionIndex = currentQuestionIndex + 1;
+                if (nextQuestionIndex < quizData.length) {
+                    currentQuestionIndex = nextQuestionIndex;
+                    renderQuestion();
+                } else {
+                    renderScore();
+                }
+            };
+
+            // Function to show the final score screen
+            const renderScore = () => {
+                gameSection.classList.add('hidden');
+                scoreSection.classList.remove('hidden');
+
+                finalScore.textContent = `You scored ${score} out of ${quizData.length} correct answers.`;
+                let message = '';
+                if (score === quizData.length) {
+                    message = "You're an FDA regulatory expert! 🚀";
+                } else if (score >= quizData.length * 0.7) {
+                    message = 'You have a solid grasp of the basics!';
+                } else {
+                    message = "You're on the right track! Time to review the basics.";
+                }
+                finalMessage.textContent = message;
+            };
+            
+            // Function to show the certificate
+            const showCertificate = () => {
+                scoreSection.classList.add('hidden');
+                certificateSection.classList.remove('hidden');
+                const userName = nameInput.value;
+                certificateName.textContent = userName;
+            };
+
+            // Function to download the certificate as a PNG
+            const downloadCertificate = () => {
+                html2canvas(certificateContainer, {
+                    scale: 2
+                }).then(canvas => {
+                    const link = document.createElement('a');
+                    link.download = `Device-Detective-Certificate.png`;
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                });
+            };
+
+            // Function to restart the game
+            const restartGame = () => {
+                currentQuestionIndex = 0;
+                score = 0;
+                isAnswered = false;
+                formSection.classList.remove('hidden');
+                gameSection.classList.add('hidden');
+                scoreSection.classList.add('hidden');
+                certificateSection.classList.add('hidden');
+                formStatus.textContent = '';
+                detailsForm.reset();
+            };
+
+            // Form submission handler
+            detailsForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const email = emailInput.value;
+                const contact = contactInput.value;
+
+                let hasError = false;
+                if (!isValidEmail(email)) {
+                    emailError.classList.remove('hidden');
+                    hasError = true;
+                } else {
+                    emailError.classList.add('hidden');
+                }
+
+                if (!isValidContact(contact)) {
+                    contactError.classList.remove('hidden');
+                    hasError = true;
+                } else {
+                    contactError.classList.add('hidden');
+                }
+
+                if (hasError) return;
+
+                submitButton.textContent = 'Submitting...';
+                submitButton.disabled = true;
+                formStatus.textContent = 'Sending your details...';
+
+                const formData = new FormData(detailsForm);
+
+                try {
+                    const response = await fetch('https://formspree.io/f/mnnzrewy', {
+                        method: 'POST',
+                        headers: {
+                            'Accept': 'application/json'
+                        },
+                        body: formData
+                    });
+
+                    if (response.ok) {
+                        formStatus.textContent = 'Thanks! Starting the game now...';
+                        setTimeout(() => {
+                            formSection.classList.add('hidden');
+                            gameSection.classList.remove('hidden');
+                            renderQuestion();
+                        }, 1000);
+                    } else {
+                        formStatus.textContent = 'Something went wrong. Please try again.';
+                    }
+                } catch (error) {
+                    formStatus.textContent = 'An error occurred. Please check your connection.';
+                } finally {
+                    submitButton.textContent = 'Start Game';
+                    submitButton.disabled = false;
+                }
+            });
+
+            // Add event listeners for game buttons
+            nextButton.addEventListener('click', handleNextQuestion);
+            showCertificateButton.addEventListener('click', showCertificate);
+            restartButton.addEventListener('click', restartGame);
+            downloadButton.addEventListener('click', downloadCertificate);
+            restartFromCertificate.addEventListener('click', restartGame);
+        });
+    </script>
+</body>
+</html>
